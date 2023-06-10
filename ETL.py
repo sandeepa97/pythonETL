@@ -43,6 +43,23 @@ if (BOCResponse.status_code == 200):
         BOCRates.append(decimal.Decimal(row['FXUSDCAD']['v']))
 
     # Create petl table from column arrays and rename the columns
-    exchangeRate = petl.fromcolumns([BOCDates,BOCRates],header=['date', 'rate'])
+    exchangeRates = petl.fromcolumns([BOCDates,BOCRates],header=['date', 'rate'])
 
-    print(exchangeRate)
+    # Load expense document
+    try:
+        expenses = petl.io.xlsx.fromxlsx('Expenses.xlsx' ,sheet='Sheet1')
+    except Exception as e:
+        print('Could not open expenses.xlsx ' + str(e))
+        sys.exit()
+    
+    # Join Tables
+    expenses = petl.outerjoin(exchangeRates,expenses,key='date')
+
+    # Fill down missing values
+    expenses = petl.filldown(expenses,'rate')
+
+    # Remove data with no expenses
+    expenses = petl.select(expenses,lambda rec: rec.USD != None)
+
+    print(expenses)
+ 
