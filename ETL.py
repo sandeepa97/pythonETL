@@ -21,6 +21,8 @@ startDate = config['CONFIG']['startDate']
 url = config['CONFIG']['url']
 destServer = config['CONFIG']['server']
 destDatabase = config['CONFIG']['database']
+destUser = config['CONFIG']['user']
+destPassword = config['CONFIG']['password']
 
 # Request data from URL
 try:
@@ -43,17 +45,17 @@ if (BOCResponse.status_code == 200):
         BOCRates.append(decimal.Decimal(row['FXUSDCAD']['v']))
 
     # Create petl table from column arrays and rename the columns
-    exchangeRates = petl.fromcolumns([BOCDates,BOCRates],header=['date', 'rate'])
+    exchangeRates = petl.fromcolumns([BOCDates,BOCRates],header=['creation_date', 'rate'])
 
     # Load expense document
     try:
-        expenses = petl.io.xlsx.fromxlsx('Expenses.xlsx' ,sheet='Sheet1')
+        expenses = petl.io.xlsx.fromxlsx('ExpensesSQL.xlsx' ,sheet='Sheet1')
     except Exception as e:
-        print('Could not open expenses.xlsx ' + str(e))
+        print('Could not open ExpensesSQL.xlsx ' + str(e))
         sys.exit()
     
     # Join tables
-    expenses = petl.outerjoin(exchangeRates,expenses,key='date')
+    expenses = petl.outerjoin(exchangeRates,expenses,key='creation_date')
 
     # Fill down missing values
     expenses = petl.filldown(expenses,'rate')
@@ -69,14 +71,14 @@ if (BOCResponse.status_code == 200):
 
     # Initialize database connection
     try:
-        dbConnection = pymysql.connect(host=destServer, database=destDatabase)
+        dbConnection = pymysql.connect(host=destServer, database=destDatabase, user=destUser, password=destPassword)
     except Exception as e:
         print('Could not connect to database ' + str(e))
         sys.exit()
 
     # Populate Expenses database table
     try:
-        petl.io.todb(expenses, dbConnection, "expenses")
+        petl.io.todb(expenses, dbConnection, 'expenses')
         print('ETL completed successfully...')
     except Exception as e:
         print('Could not write to database: ' + str(e))
@@ -84,7 +86,7 @@ if (BOCResponse.status_code == 200):
     # # Generate SQL insert queries
     # insert_queries = []
     # for row in petl.dicts(expenses):
-    #     date = row['date'].strftime('%Y-%m-%d')
+    #     date = row['creation_date'].strftime('%Y-%m-%d')
     #     usd = str(row['USD'])
     #     rate = str(row['rate'])
     #     cad = str(row['CAD'])
