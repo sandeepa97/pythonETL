@@ -52,7 +52,7 @@ if (BOCResponse.status_code == 200):
         print('Could not open expenses.xlsx ' + str(e))
         sys.exit()
     
-    # Join Tables
+    # Join tables
     expenses = petl.outerjoin(exchangeRates,expenses,key='date')
 
     # Fill down missing values
@@ -61,5 +61,42 @@ if (BOCResponse.status_code == 200):
     # Remove data with no expenses
     expenses = petl.select(expenses,lambda rec: rec.USD != None)
 
-    print(expenses)
- 
+    # Add CDN column
+    expenses = petl.addfield(expenses,'CAD', lambda rec: decimal.Decimal(rec.USD) * rec.rate)
+
+    # print(expenses)
+    # sys.exit()
+
+    # Initialize database connection
+    try:
+        dbConnection = pymysql.connect(host=destServer, database=destDatabase)
+    except Exception as e:
+        print('Could not connect to database ' + str(e))
+        sys.exit()
+
+    # Populate Expenses database table
+    try:
+        petl.io.todb(expenses, dbConnection, "expenses")
+        print('ETL completed successfully...')
+    except Exception as e:
+        print('Could not write to database: ' + str(e))
+
+    # # Generate SQL insert queries
+    # insert_queries = []
+    # for row in petl.dicts(expenses):
+    #     date = row['date'].strftime('%Y-%m-%d')
+    #     usd = str(row['USD'])
+    #     rate = str(row['rate'])
+    #     cad = str(row['CAD'])
+    #     query = f"INSERT INTO expenses (`date`, USD, rate, CAD) VALUES ('{date}', {usd}, {rate}, {cad});"
+    #     insert_queries.append(query)
+
+    # # Save queries to a text file
+    # output_file = 'insert_queries.txt'
+    # try:
+    #     with open(output_file, 'w') as f:
+    #         for query in insert_queries:
+    #             f.write(query + '\n')
+    #     print('SQL insert queries saved to', output_file)
+    # except Exception as e:
+    #     print('Could not save the insert queries:', str(e))

@@ -1,7 +1,3 @@
 # ETL with Python
 
-40:08 / 57:18
-
-•
-Excel Document
-
+petl is a general purpose Python package for extracting, transforming and loading tables of data.
